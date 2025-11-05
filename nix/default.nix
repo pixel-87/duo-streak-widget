@@ -6,7 +6,7 @@ buildGoModule {
   pname = "duo-streak-widget";
   inherit version;
 
-  src = ./src/;
+  src = ../src;
 
   vendorHash = null;
 
