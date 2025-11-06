@@ -6,6 +6,8 @@
   go,
   gopls,
   goreleaser,
+  terraform-ls,
+  terraform,
 }:
 let
   defaultPackage = callPackage ./default.nix { };
@@ -17,5 +19,7 @@ mkShellNoCC {
     go
     gopls
     goreleaser
+    terraform-ls
+    terraform
   ];
 }
