@@ -11,7 +11,10 @@
       forAllSystems =
         function:
         nixpkgs.lib.genAttrs nixpkgs.lib.systems.flakeExposed (
-          system: function nixpkgs.legacyPackages.${system}
+          system: function (import nixpkgs {
+            inherit system;
+            config.allowUnfree = true;
+          })
         );
     in
     {
