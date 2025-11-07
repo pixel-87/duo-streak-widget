@@ -9,6 +9,7 @@
   goreleaser,
   terraform-ls,
   terraform,
+  google-cloud-sdk,
 }:
 let
   defaultPackage = callPackage ./default.nix { };
@@ -23,5 +24,6 @@ mkShellNoCC {
     goreleaser
     terraform-ls
     terraform
+    google-cloud-sdk
   ];
 }
