@@ -16,15 +16,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Nix
-        uses: DeterminateSystems/nix-installer-action@main
-
-      - name: Set up Nix cache
-        uses: DeterminateSystems/magic-nix-cache-action@main
-
-      - name: Check Nix flake
-        run: nix flake check
-
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
@@ -78,6 +69,9 @@ jobs:
 
       - name: Set up Nix cache
         uses: DeterminateSystems/magic-nix-cache-action@main
+
+      - name: Check Nix flake
+        run: nix flake check
 
       - name: Build OCI image with Nix
         run: nix build .#image
