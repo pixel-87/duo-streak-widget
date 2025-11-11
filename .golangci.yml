@@ -16,14 +16,18 @@ linters:
     # --- Formatting & Style (Best Practices) ---
     - goconst # Finds repeated strings that should be constants
     - gocyclo # Checks for high complexity (high numbers are bad)
-
-
-      # --- Performance & Bug Prevention ---
+    # --- Performance & Bug Prevention ---
     - bodyclose # CRITICAL for an API: checks for unclosed response bodies
     - prealloc # Finds loops that could be faster by pre-allocating slices/maps
     - unconvert # Finds redundant type conversions
     - noctx # Enforces passing 'context.Context' as first arg (good for APIs)
     - wsl_v5 # Enforces whitespace and line-ending rules (strict but clean)
+
+linters-settings:
+  wsl_v5:
+    allow-first-in-block: true
+    allow-whole-block: false
+    branch-max-lines: 2
 
 issues:
   exclude-rules:

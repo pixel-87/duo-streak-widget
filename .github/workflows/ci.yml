@@ -34,7 +34,7 @@ jobs:
       - name: Run golangci-lint (uses prebuilt binary)
         uses: golangci/golangci-lint-action@v4
         with:
-          version: v1.59.0
+          version: latest
           # run lint against the `src/` module where go.mod lives
           args: run ./src/...
 
