@@ -31,14 +31,17 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
 
-      - name: Install golangci-lint
-        run: go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.59.0
-
-      - name: Lint with golangci-lint
-        run: golangci-lint run ./...
+      - name: Run golangci-lint (uses prebuilt binary)
+        uses: golangci/golangci-lint-action@v4
+        with:
+          version: v1.59.0
+          # run lint against the `src/` module where go.mod lives
+          args: run ./src/...
 
       - name: Run tests
-        run: go test -v -race -coverprofile=coverage.out ./...
+        run: |
+          cd src
+          go test -v -race -coverprofile=coverage.out ./...
 
       - name: Check code formatting
         run: |
@@ -50,7 +53,9 @@ jobs:
           fi
 
       - name: Vet code
-        run: go vet ./...
+        run: |
+          cd src
+          go vet ./...
 
   build-image:
     needs: lint-test
