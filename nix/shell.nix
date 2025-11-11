@@ -5,6 +5,7 @@
   # extra tooling
   go,
   gopls,
+  golangci-lint,
   goreleaser,
   terraform-ls,
   terraform,
@@ -18,6 +19,7 @@ mkShellNoCC {
   packages = [
     go
     gopls
+    golangci-lint
     goreleaser
     terraform-ls
     terraform

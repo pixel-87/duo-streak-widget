@@ -1,0 +1,37 @@
+version: 2
+
+run:
+  timeout: 5m
+  go: "1.25"
+
+linters:
+  enable:
+    # --- Core Linters (Essential) ---
+    - govet # Reports suspicious constructs
+    - errcheck # Checks for unhandled errors
+    - staticcheck # A huge suite of static analysis checks
+    - unused # Checks for unused code
+    - ineffassign # Checks for ineffectual assignments (e.g., `x := 1; x = 2`)
+
+    # --- Formatting & Style (Best Practices) ---
+    - goconst # Finds repeated strings that should be constants
+    - gocyclo # Checks for high complexity (high numbers are bad)
+
+
+      # --- Performance & Bug Prevention ---
+    - bodyclose # CRITICAL for an API: checks for unclosed response bodies
+    - prealloc # Finds loops that could be faster by pre-allocating slices/maps
+    - unconvert # Finds redundant type conversions
+    - noctx # Enforces passing 'context.Context' as first arg (good for APIs)
+    - wsl_v5 # Enforces whitespace and line-ending rules (strict but clean)
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - errcheck # ok to not check errors in tests
+        - gocritic # relaxed style in tests
+        - gosec # test-specific security exceptions
+    - linters:
+        - errcheck
+      text: "Error return value is not checked"

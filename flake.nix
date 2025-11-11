@@ -19,14 +19,18 @@
     in
     {
       packages = forAllSystems (pkgs: {
-        example = pkgs.callPackage ./nix/default.nix { };
-        default = self.packages.${pkgs.stdenv.hostPlatform.system}.example;
+        widget = pkgs.callPackage ./nix/default.nix { };
+        image = pkgs.callPackage ./nix/oci.nix {
+          cacert = pkgs.cacert;
+          default = self.packages.${pkgs.stdenv.hostPlatform.system}.widget;
+        };
+        default = self.packages.${pkgs.stdenv.hostPlatform.system}.widget;
       });
 
       devShells = forAllSystems (pkgs: {
         default = pkgs.callPackage ./nix/shell.nix { };
       });
 
-      overlays.default = final: _: { example = final.callPackage ./nix/default.nix { }; };
+      overlays.default = final: _: { widget = final.callPackage ./nix/default.nix { }; };
     };
 }

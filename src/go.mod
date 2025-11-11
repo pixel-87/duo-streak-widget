@@ -1,3 +1,3 @@
-module github.com/isabelroses/example
+module github.com/pixel-87/duo-streak-widget
 
-go 1.22
+go 1.25
