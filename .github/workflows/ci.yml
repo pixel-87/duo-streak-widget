@@ -16,6 +16,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set up Nix
+        uses: DeterminateSystems/nix-installer-action@main
+
+      - name: Set up Nix cache
+        uses: DeterminateSystems/magic-nix-cache-action@main
+
+      - name: Check Nix flake
+        run: nix flake check
+
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
@@ -31,12 +40,13 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
 
-      - name: Run golangci-lint (uses prebuilt binary)
-        uses: golangci/golangci-lint-action@v4
-        with:
-          version: latest
-          # run lint against the `src/` module where go.mod lives
-          args: run ./src/...
+      - name: Install golangci-lint (prebuilt binary built with Go 1.25+)
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh \
+            | sh -s -- -b "$(go env GOPATH)/bin" latest
+
+      - name: Run golangci-lint
+        run: cd src && golangci-lint run ./...
 
       - name: Run tests
         run: |

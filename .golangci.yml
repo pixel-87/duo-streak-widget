@@ -34,8 +34,6 @@ issues:
     - path: _test\.go
       linters:
         - errcheck # ok to not check errors in tests
-        - gocritic # relaxed style in tests
-        - gosec # test-specific security exceptions
     - linters:
         - errcheck
       text: "Error return value is not checked"
