@@ -1,39 +1,83 @@
-version: 2
+version: "2"
 
 run:
   timeout: 5m
+  relative-path-mode: gomod
+  modules-download-mode: readonly
+  allow-parallel-runners: true
+  tests: true
   go: "1.25"
 
 linters:
+  default: standard
   enable:
-    # --- Core Linters (Essential) ---
-    - govet # Reports suspicious constructs
-    - errcheck # Checks for unhandled errors
-    - staticcheck # A huge suite of static analysis checks
-    - unused # Checks for unused code
-    - ineffassign # Checks for ineffectual assignments (e.g., `x := 1; x = 2`)
+    - bodyclose
+    - errcheck
+    - errorlint
+    - exhaustive
+    - forbidigo
+    - gocognit
+    - goconst
+    - gocritic
+    - gosec
+    - govet
+    - ineffassign
+    - misspell
+    - nilerr
+    - nolintlint
+    - prealloc
+    - revive
+    - staticcheck
+    - unparam
+    - unused
+  disable:
+    - depguard
+    - exhaustruct
+  settings:
+    gocognit:
+      min-complexity: 22
+    gocyclo:
+      min-complexity: 15
+    gosec:
+      excludes:
+        - G404
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+    revive:
+      severity: warning
+      rules:
+        - name: exported
+          severity: warning
+        - name: indent-error-flow
+        - name: redefines-builtin-id
 
-    # --- Formatting & Style (Best Practices) ---
-    - goconst # Finds repeated strings that should be constants
-    - gocyclo # Checks for high complexity (high numbers are bad)
-    # --- Performance & Bug Prevention ---
-    - bodyclose # CRITICAL for an API: checks for unclosed response bodies
-    - prealloc # Finds loops that could be faster by pre-allocating slices/maps
-    - unconvert # Finds redundant type conversions
-    - noctx # Enforces passing 'context.Context' as first arg (good for APIs)
-    - wsl_v5 # Enforces whitespace and line-ending rules (strict but clean)
-
-linters-settings:
-  wsl_v5:
-    allow-first-in-block: true
-    allow-whole-block: false
-    branch-max-lines: 2
+formatters:
+  enable:
+    - gofmt
+    - gofumpt
+  settings:
+    gofumpt:
+      extra-rules: true
 
 issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+  uniq-by-line: true
+  fix: false
   exclude-rules:
     - path: _test\.go
       linters:
-        - errcheck # ok to not check errors in tests
+        - errcheck
+        - gosec
     - linters:
         - errcheck
       text: "Error return value is not checked"
+
+severity:
+  default: error
+  rules:
+    - linters:
+        - gocognit
+        - gocyclo
+      severity: warning
