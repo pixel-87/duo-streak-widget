@@ -92,6 +92,6 @@
     stroke-width="0.3"
     text-anchor="middle"
     dominant-baseline="middle"
-    id="streak-text">123</text>
+    id="streak-text">{{ .Streak }}</text>
 
 </svg>

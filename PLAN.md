@@ -1,6 +1,6 @@
 # Duo Streak Widget — Implementation Plan (Cloud Run + Cloudflare)
 
-This document lays out a complete, step-by-step plan to build a small service that returns an 88×31 SVG badge showing a Duolingo streak for a username. The aim is to use Cloud Run for the dynamic service and Cloudflare as the CDN/cache layer so you can keep costs at $0 while learning modern cloud and infra practices.
+This document is an improved, actionable plan for building a small service that returns an 88×31 SVG badge showing a Duolingo streak for a username. It expands the original plan to include template variations, testing, theme support, automation for deployment, and troubleshooting notes for Nix/Go environments.
 
 ## Architecture Overview
 
@@ -17,6 +17,12 @@ User Browser → Cloudflare (edge cache) → Cloud Run service (Go) → In-memor
 - Reasonable default TTLs and headers so browsers + Cloudflare cache effectively.
 - Rate limiting to protect the upstream Duolingo endpoint.
 
+Additional success items:
+
+- Well-documented template system that supports multiple variants (e.g. `duoText`, `duoIcon`, `compact`).
+- Simple theming support via query params or path variant (e.g., `?theme=dark`, or `/badge/{username}.svg?variant=compact`).
+- Automated tests — unit tests for generator, integration tests for the HTTP path, and a small E2E smoke test in CI.
+
 ## Phases (high level)
 
 1. Go backend — core logic (HTTP server, API client, cache, badge generation, rate limiting).
@@ -26,6 +32,10 @@ User Browser → Cloudflare (edge cache) → Cloud Run service (Go) → In-memor
 5. CI/CD — GitHub Actions to build, test, push, and deploy.
 6. Observability — logs, metrics, uptime.
 
+7. Templates & Theming — small library of SVG templates and a testing mechanism for visual snapshots.
+
+Tip: If you plan to use Cloudflare Workers for on-edge logic, only perform cheap, idempotent transformations (strip query params, rewrite headers). Keep Duolingo calls to the origin.
+
 ---
 
 ## Phase 1 — Go Backend (developer tasks)
@@ -34,11 +44,15 @@ Contract
 
 - Input: HTTP GET /badge/{username}.svg
 - Output: `Content-Type: image/svg+xml` body with 88×31 SVG or a lightweight error badge.
+- Support additional optional query parameters:
+  - `variant` — selects one of the embedded SVG templates
+  - `theme` — selects light/dark color palette or a CSS class for the SVG
+  - `width`/`height` — optional scale constraints (server should clamp/deny large values)
 - Error modes: upstream failure -> show fallback badge (N/A); not-found -> friendly badge.
 
 Files to create (suggested structure)
 
-```
+```text
 src/
 ├─ main.go                    # router and entry point
 ├─ internal/
@@ -55,17 +69,34 @@ Key behaviors
 - ETag or simple hash may be returned to help conditional requests.
 - Rate limiting: per-username token bucket or fixed-window (e.g., 1 Duolingo fetch per 5 minutes per username).
 
+Implementation suggestions & best practices:
+
+- Use `singleflight` (golang.org/x/sync/singleflight) to deduplicate concurrent upstream calls for the same username. This reduces load when a cache expires and many requests arrive at once.
+- Keep the generator deterministic for snapshot tests: pass numeric format only (no truncation/abbreviation in test mode).
+- Add an in-memory `map[string]struct{ Value int; Expires time.Time }` behind a read/write mutex or use an LRU TTL cache library.
+
 Edge cases
 
 - Missing username / invalid characters -> return 400 or sanitized fallback.
 - Duolingo returns 404 -> show "user not found" badge and cache short (5–15 minutes).
 - Large number of concurrent requests for same user -> use singleflight or similar to coalesce upstream calls.
 
+Badge-specific edge cases:
+
+- Username contains path separators or control characters — sanitize and return 400 for invalid characters to prevent cache poisoning.
+- Upstream rate-limit errors — return a transient placeholder (N/A) with short cache TTL (e.g., 60s) and log with detail.
+- Internationalized usernames — limit accepted characters and normalize (NFKC) before using cache keys.
+
 ## Phase 2 — Containerization
 
 - Multi-stage `Dockerfile` (build in golang image, copy binary to small base like `gcr.io/distroless/static` or `alpine`).
 - `.dockerignore` to exclude `.git`, `node_modules`, etc.
 - For local dev: `docker-compose` or `skaffold`/`telepresence` optional.
+
+Local dev ergonomics:
+
+- Add a `Makefile` target like `make dev` to run `nix develop -c go run ./src` with the correct env vars.
+- Add `docker-compose.yml` with a local Redis option if you choose to use Redis instead of in-memory cache for scale testing.
 
 ## Phase 3 — GCP Infra (Terraform) (optional: can skip if you prefer manual deploy)
 
@@ -93,7 +124,7 @@ Essential steps:
 
 Recommended headers from the service (Cloud Run):
 
-```
+```http
 Cache-Control: public, max-age=300, s-maxage=900
 Vary: Accept
 Content-Type: image/svg+xml; charset=utf-8
@@ -103,10 +134,10 @@ Content-Type: image/svg+xml; charset=utf-8
 
 ## Phase 5 — CI/CD
 
-- GitHub Actions workflow stages:
-  1. `lint` and `go test`.
-  2. `docker build` and push to Artifact Registry.
-  3. `gcloud run deploy` (or use `terraform apply`).
+   1. `lint` and `go test`.
+   2. `docker build` and push to Artifact Registry.
+   3. Add a small "deploy" job that pushes a tagged image and performs `gcloud run deploy` or `terraform apply` depending on your infra setup. Staging and production branches are useful here.
+   4. `gcloud run deploy` (or use `terraform apply`).
 
 Secrets: store GCP credentials / service account in GitHub Secrets.
 
@@ -115,6 +146,61 @@ Secrets: store GCP credentials / service account in GitHub Secrets.
 - Log structured events: cache hit/miss, upstream call, error, username.
 - Monitor Cloud Run metrics (requests, error rate, latencies).
 - Optional uptime check (UptimeRobot or Cloudflare Healthchecks).
+
+---
+
+## Observability, Metrics, & Ops
+
+- Instrument request latencies, upstream retries, cache hit/miss rates, and error counts.
+- Expose a metrics endpoint for Prometheus scraping (or push to Cloud Monitoring).
+- Add structured logs: username, upstream status, cache hit flag.
+
+---
+
+## Security & Privacy
+
+---
+
+## Templates & Theming
+
+- Keep templates in `src/templates/*.svg`, embed via `//go:embed`.
+- Standardize placeholder: `{{ .Streak }}` — tests should assert exact numeric output (no truncation).
+- Provide multiple pre-validated variants (`duoText`, `duoIcon`, `compact`) with a `variant` query param.
+- Themes (`light`/`dark`) should be implemented by toggling CSS class or `data-theme` attribute; keep the engine simple and deterministic.
+
+---
+
+## Testing & CI updates
+
+- Unit tests — generator and template render assertions in `internal/badge`.
+- Integration tests — test the HTTP handler with mock Duolingo client and app cache.
+- E2E smoke — run container in CI and assert the badge endpoint returns an SVG and correct headers.
+
+Sample GitHub Actions workflow:
+
+```yaml
+name: CI
+on: [push, pull_request]
+jobs:
+   test:
+      runs-on: ubuntu-latest
+      steps:
+         - uses: actions/checkout@v3
+         - name: Setup Go
+            uses: actions/setup-go@v4
+            with:
+               go-version: 1.20
+         - name: Install deps
+            run: go mod download
+         - name: Run unit tests
+            run: go test ./... -v
+         - name: E2E smoke
+            run: |
+               docker build -t duo-streak-widget:e2e .
+               docker run --rm -p 8080:8080 duo-streak-widget:e2e &
+               sleep 2
+               curl -f http://localhost:8080/badge/testuser.svg | grep -q "<svg"
+```
 
 ## Badge design and API
 
@@ -139,6 +225,26 @@ This yields:
 - Do not store or expose any Duolingo credentials. The service only reads public user data.
 - Sanitize and rate-limit user-supplied path segments to prevent injection or cache poisoning.
 
+Additional checklist:
+
+- Use environment variables for credentials. Keep Cloud Run service account permissions minimal.
+- Pin third-party dependencies to a known-good set in `go.mod` and `go.sum`.
+- Consider creating a separate Cloud Run service account only for fetching the Duolingo endpoints.
+
+---
+
+## Visual tests and snapshotting
+
+- Use `testdata/` to store example SVG outputs for a couple of fixed streak values.
+- Optionally add a small script to render those SVGs in a simple HTML file for quick manual visual review (CI can also archive artifacts).
+
+---
+
+## Troubleshooting & Nix notes
+
+- If `nix develop -c go test` fails with `go: download go1.x: toolchain not available`, try running `nix develop` and then `go test .` inside the shell.
+- Keep CI pinned to a stable Go version so local shells and CI match.
+
 ## Cost considerations
 
 - Cloud Run free tier (2M requests/month) should be enough for learning.
@@ -147,7 +253,7 @@ This yields:
 
 ## Local dev quick commands (suggested)
 
-```
+```bash
 # run locally
 go run ./src
 
@@ -166,8 +272,11 @@ curl -v http://localhost:8080/badge/someusername.svg
 / (repo root)
 ├── PLAN.md                # This file
 ├── src/
-│   ├── main.go
-│   └── internal/...
+│   ├── cmd/               # server entry
+│   ├── internal/
+│   │  ├── badge/          # generator + templates
+│   │  ├── cache/          # TTL cache
+│   │  └── duolingo/       # client + mocks for tests
 ├── Dockerfile
 ├── .dockerignore
 ├── iac/                   # terraform and deployment config
