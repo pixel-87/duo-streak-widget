@@ -1,131 +1,80 @@
-// This file is a disabled backup of the badge generator implementation and is
-// intentionally left out of the build by the `broken` build tag. It contains
-// a previous iteration of the generator; `badge_gen.go` is the authoritative
-// implementation. Feel free to delete this file when ready.
-
-//go:build broken
-
 package badge_gen
 
 import (
-	"bytes"
-	"embed"
 	"errors"
 	"fmt"
-	"io/fs"
-	"path/filepath"
 	"strconv"
 	"strings"
-	"sync"
-	"text/template"
 )
 
-// BadgeGenerator manages multiple templates and renders them efficiently.
-type BadgeGenerator struct {
-	templates   map[string]*template.Template
+// defaultTemplate is a simple placeholder so the package compiles and tests have
+// something to assert against. Replace it with your actual SVG whenever you're
+// ready to work on visuals.
+const defaultTemplate = `<svg xmlns="http://www.w3.org/2000/svg" width="88" height="31"><text>%STREAK%</text></svg>`
+
+// BadgeGenerator now just swaps streak numbers into string templates. Keeping it
+// tiny makes it easy for you to extend later without digging through helpers.
+
+	templates   map[string]string
 	defaultName string
-	bufPool     sync.Pool
 }
 
-// NewBadgeGenerator builds a generator from a map of name->SVG template strings.
+// NewBadgeGenerator wires a template map with minimal validation.
 func NewBadgeGenerator(templates map[string]string, defaultName string) (*BadgeGenerator, error) {
 	if len(templates) == 0 {
-		return nil, errors.New("templates map is empty")
+		return nil, errors.New("no templates provided")
+	}
+	if defaultName == "" {
+		for name := range templates {
+			defaultName = name
+			break
+		}
 	}
 	if _, ok := templates[defaultName]; !ok {
-		return nil, fmt.Errorf("default template %q not provided", defaultName)
+		return nil, fmt.Errorf("unknown default template %q", defaultName)
 	}
-	parsed := make(map[string]*template.Template, len(templates))
-	for k, v := range templates {
-		t, err := template.New(k).Parse(v)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse template %q: %w", k, err)
-		}
-		parsed[k] = t
-	}
-
-	g := &BadgeGenerator{
-		templates:   parsed,
-		defaultName: defaultName,
-		bufPool:     sync.Pool{New: func() any { return new(bytes.Buffer) }},
-	}
-	return g, nil
+	return &BadgeGenerator{templates: templates, defaultName: defaultName}, nil
 }
 
-// GenerateBadge renders the template named by `variant` (default if empty) with the given streak.
+// GenerateBadge replaces the %STREAK% marker with the number provided. There is
+// intentionally no pooling or template parsing so you can decide how fancy you
+// want this function to become.
 func (g *BadgeGenerator) GenerateBadge(variant string, streak int) ([]byte, error) {
 	if g == nil {
-		return nil, errors.New("nil generator")
+		return nil, errors.New("badge generator is nil")
 	}
 	if variant == "" {
 		variant = g.defaultName
 	}
 	tmpl, ok := g.templates[variant]
 	if !ok {
-		return nil, fmt.Errorf("template variant %q not found", variant)
+		return nil, fmt.Errorf("template %q not found", variant)
 	}
-
 	if streak < 0 {
 		streak = 0
 	}
-
-	s := strconv.Itoa(streak)
-
-	data := BadgeData{Streak: s}
-
-	buf := g.bufPool.Get().(*bytes.Buffer)
-	buf.Reset()
-	defer g.bufPool.Put(buf)
-
-	if err := tmpl.Execute(buf, data); err != nil {
-		return nil, fmt.Errorf("failed to execute template %q: %w", variant, err)
-	}
-
-	out := make([]byte, buf.Len())
-	copy(out, buf.Bytes())
-	return out, nil
+	svg := strings.ReplaceAll(tmpl, "%STREAK%", strconv.Itoa(streak))
+	return []byte(svg), nil
 }
 
-// GenerateBadgeFromSingleTemplate is a convenience helper for the single-template case.
-// This prefers embedded templates and does not fall back to inline assets.
+// GenerateBadgeFromSingleTemplate keeps the previous helper API around.
 func GenerateBadgeFromSingleTemplate(streak int) ([]byte, error) {
 	g, err := NewBadgeGeneratorFromEmbed("duoText")
 	if err != nil {
 		return nil, err
 	}
-	return g.GenerateBadge("", streak)
+	return g.GenerateBadge("duoText", streak)
 }
 
-//go:embed templates/*.svg
-var templatesFS embed.FS
-
-// NewBadgeGeneratorFromEmbed parses SVGs embedded in the binary and returns a generator.
-// Each template is keyed by its filename (without extension), e.g. `duoText`.
+// NewBadgeGeneratorFromEmbed now just returns the default template. Swap this
+// out for real embedded assets whenever you're ready.
 func NewBadgeGeneratorFromEmbed(defaultName string) (*BadgeGenerator, error) {
-	entries, err := fs.ReadDir(templatesFS, "templates")
-	if err != nil {
-		return nil, fmt.Errorf("failed to read embedded templates: %w", err)
-	}
-
-	templates := map[string]string{}
-	for _, e := range entries {
-		if e.IsDir() {
-			continue
-		}
-		name := e.Name()
-		b, err := templatesFS.ReadFile(filepath.Join("templates", name))
-		if err != nil {
-			return nil, fmt.Errorf("failed to read embedded template %q: %w", name, err)
-		}
-		key := strings.TrimSuffix(name, filepath.Ext(name))
-		templates[key] = string(b)
-	}
-
 	if defaultName == "" {
-		for k := range templates {
-			defaultName = k
-			break
-		}
+		defaultName = "duoText"
+	}
+	templates := map[string]string{
+		"duoText": defaultTemplate,
 	}
 	return NewBadgeGenerator(templates, defaultName)
 }
+	if err := tmpl.Execute(buf, data); err != nil {

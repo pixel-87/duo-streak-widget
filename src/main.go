@@ -1,7 +1,9 @@
 package main
 
-import "fmt"
+import (
+	"log"
+)
 
-type cacheEntry struct {
-	St
+func main() {
+	log.Println("TODO: wire up HTTP handlers, cache, and badge generator")
 }
