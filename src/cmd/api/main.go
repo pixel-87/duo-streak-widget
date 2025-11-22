@@ -4,19 +4,20 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/pixel-87/duo-streak-widget/api"
 	"github.com/pixel-87/duo-streak-widget/internal/service"
 )
 
 func main() {
-	// 1. Initialize the Service 
+	// 1. Initialize the Service
 	svc, err := service.NewDuoService()
 	if err != nil {
 		log.Fatalf("Failed to initialize service: %v", err)
 	}
 
-	// 2. Initialize the API Handler 
+	// 2. Initialize the API Handler
 	// We inject the service into the API
 	handler := api.NewAPI(svc)
 
@@ -33,7 +34,15 @@ func main() {
 	}
 
 	log.Printf("Server starting on port %s...", port)
-	if err := http.ListenAndServe(":"+port, mux); err != nil {
+	srv := &http.Server{
+		Addr:         ":" + port,
+		Handler:      mux,
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		IdleTimeout:  30 * time.Second,
+	}
+
+	if err := srv.ListenAndServe(); err != nil {
 		log.Fatalf("Server failed to start: %v", err)
 	}
 }

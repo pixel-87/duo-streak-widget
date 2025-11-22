@@ -22,7 +22,7 @@ func TestFetchStreak(t *testing.T) {
 
 		// Return a fake JSON response
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprintln(w, `{
+		_, _ = fmt.Fprintln(w, `{
 			"users": [
 				{
 					"streak": 10,
@@ -64,7 +64,7 @@ func TestGetBadge_Caching(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requestCount++
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprintln(w, `{"users":[{"streak":10,"streakData":{"currentStreak":{"length":100}}}]}`)
+		_, _ = fmt.Fprintln(w, `{"users":[{"streak":10,"streakData":{"currentStreak":{"length":100}}}]}`)
 	}))
 	defer ts.Close()
 

@@ -117,7 +117,9 @@ func (s *DuoService) fetchStreak(ctx context.Context, username string) (int, err
 	if err != nil {
 		return 0, err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return 0, fmt.Errorf("duolingo api returned status: %d", resp.StatusCode)

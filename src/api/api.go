@@ -12,14 +12,7 @@ type buttonParams struct {
 	Variant  string
 }
 
-type buttonResponse struct {
-	// SVG data
-	Button string
-
-	// Success code
-	Code int
-}
-
+// Error represents an error response for the SVG badge handlers.
 type Error struct {
 	// Error code
 	Code int
@@ -44,8 +37,9 @@ func writeError(w http.ResponseWriter, message string, code int) {
 
 	w.Header().Set("Content-Type", "image/svg+xml")
 	w.WriteHeader(code)
-	w.Write([]byte(svg))
+	_, _ = w.Write([]byte(svg))
 }
+
 // wrappers for error handling
 var (
 	RequestErrorHandler = func(w http.ResponseWriter, err error) {
@@ -66,6 +60,8 @@ func NewAPI(svc Service) *API {
 	return &API{svc: svc}
 }
 
+// GetDuoButton handles the /api/duolingo/button route and returns an SVG badge.
+// It validates query params and delegates to the injected service.
 func (a *API) GetDuoButton(w http.ResponseWriter, r *http.Request) {
 	params := buttonParams{
 		Username: r.URL.Query().Get("username"),
@@ -91,5 +87,5 @@ func (a *API) GetDuoButton(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "image/svg+xml")
 	w.WriteHeader(http.StatusOK)
-	w.Write(svg)
+	_, _ = w.Write(svg)
 }
