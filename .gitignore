@@ -32,3 +32,9 @@ go.work.sum
 .vscode/
 
 result/
+
+# Terraform
+.terraform/
+terraform.tfstate*
+terraform.tfvars
+*.tfvars
