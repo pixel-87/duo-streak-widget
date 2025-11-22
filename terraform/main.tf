@@ -24,6 +24,10 @@ resource "google_cloud_run_v2_service" "default" {
         container_port = 8080
       }
     }
+    scaling {
+      min_instance_count = 0
+      max_instance_count = 2
+    }
   }
 }
 
