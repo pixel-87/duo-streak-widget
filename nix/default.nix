@@ -8,7 +8,9 @@ buildGoModule {
 
   src = ../src;
 
-  vendorHash = null;
+  vendorHash = "sha256-XWsBc8QKelO0FRwr2QgSNTNHyY9pD6fr1karRDc1CtY=";
+
+  subPackages = [ "cmd/api" ];
 
   ldflags = [
     "-s"
@@ -16,11 +18,15 @@ buildGoModule {
     "-X main.version=${version}"
   ];
 
+  postInstall = ''
+    mv $out/bin/api $out/bin/duo-streak-widget
+  '';
+
   meta = {
     description = "A duolingo 88x31 button";
     homepage = "https://github.com/pixel-87/duo-streak-widget";
     license = lib.licenses.mit;
     maintainers = with lib.maintainers; [ ];
-    mainProgram = "example";
+    mainProgram = "duo-streak-widget";
   };
 }
