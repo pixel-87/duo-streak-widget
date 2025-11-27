@@ -83,10 +83,10 @@
 
   <!-- Text element for streak number (placeholder) -->
   <text
-    x="13.8"
+    x="13.5"
     y="4.5"
     font-family="Minecraft, monospace, sans-serif"
-    font-size="5.5"
+    font-size="6"
     fill="#ffffff"
     stroke="#000000"
     stroke-width="0.3"
