@@ -9,7 +9,7 @@ terraform {
 
 provider "google" {
   project = "duo-streak-widget"
-  region  = "europe-west2"
+  region  = "us-central1"
 }
 
 resource "google_cloud_run_v2_service" "default" {
