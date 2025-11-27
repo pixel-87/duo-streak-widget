@@ -14,7 +14,7 @@ provider "google" {
 
 resource "google_cloud_run_v2_service" "default" {
   name     = "duo-streak-widget"
-  location = "europe-west2"
+  location = "us-central1"
   ingress  = "INGRESS_TRAFFIC_ALL"
 
   template {
