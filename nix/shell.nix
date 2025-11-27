@@ -10,6 +10,7 @@
   terraform-ls,
   terraform,
   google-cloud-sdk,
+  gcc,
 }:
 let
   defaultPackage = callPackage ./default.nix { };
@@ -22,6 +23,8 @@ mkShellNoCC {
     gopls
     golangci-lint
     goreleaser
+    # C compiler for cgo (some stdlib packages enable cgo on Linux)
+    gcc
     terraform-ls
     terraform
     google-cloud-sdk
