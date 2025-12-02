@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="88" height="31" viewBox="0 0 88 31">
+  <!-- Solid black background -->
+  <rect width="100%" height="100%" fill="#000000"/>
+  
+  <!-- Centered streak number -->
+  <text
+    x="44"
+    y="16"
+    font-family="monospace, sans-serif"
+    font-size="14"
+    fill="#ffffff"
+    text-anchor="middle"
+    dominant-baseline="middle">{{ .Streak }}</text>
+</svg>

@@ -54,18 +54,22 @@ var (
 	}
 )
 
-// API holds the dependencies for our HTTP handlers.
+// API holds the HTTP handler dependencies.
 type API struct {
-	svc Service
+	duoSvc    Service
+	githubSvc Service
 }
 
-// NewAPI creates a new API instance with the given service.
-func NewAPI(svc Service) *API {
-	return &API{svc: svc}
+// NewAPI creates a new API instance.
+func NewAPI(duoSvc, githubSvc Service) *API {
+	return &API{
+		duoSvc:    duoSvc,
+		githubSvc: githubSvc,
+	}
 }
 
-// GetDuoButton handles the /api/duolingo/button route and returns an SVG badge.
-// It validates query params and delegates to the injected service.
+// GetDuoButton handles the /api/duolingo/button route.
+// Validates query params and delegates to the service.
 func (a *API) GetDuoButton(w http.ResponseWriter, r *http.Request) {
 	params := buttonParams{
 		Username: r.URL.Query().Get("username"),
@@ -81,18 +85,49 @@ func (a *API) GetDuoButton(w http.ResponseWriter, r *http.Request) {
 		params.Variant = "default"
 	}
 
-	// Call the service to get the badge
-	svg, err := a.svc.GetBadge(r.Context(), params.Username, params.Variant)
+	// Get badge from service
+	svg, err := a.duoSvc.GetBadge(r.Context(), params.Username, params.Variant)
 	if err != nil {
-		// In a real app, you might check the error type to decide between 404, 500, etc.
+		// In production, check error type for appropriate status code.
 		writeError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "image/svg+xml")
-	// Instruct CDNs and browsers to cache the generated SVG for 3 hours
+	// Cache SVG for 3 hours
 	w.Header().Set("Cache-Control", "public, max-age=10800")
-	// Ensure caches (CDNs) store variants based on Accept-Encoding
+	// Vary on Accept-Encoding for cache variants
+	w.Header().Add("Vary", "Accept-Encoding")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(svg)
+}
+
+// GetGithubButton handles the /api/github/button route.
+// Validates query params and delegates to the GitHub service.
+func (a *API) GetGithubButton(w http.ResponseWriter, r *http.Request) {
+	params := buttonParams{
+		Username: r.URL.Query().Get("username"),
+		Variant:  r.URL.Query().Get("variant"),
+	}
+
+	if params.Username == "" {
+		writeError(w, "Missing 'username' parameter", http.StatusBadRequest)
+		return
+	}
+
+	if params.Variant == "" {
+		params.Variant = "default"
+	}
+
+	// Get badge from service
+	svg, err := a.githubSvc.GetBadge(r.Context(), params.Username, params.Variant)
+	if err != nil {
+		writeError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "image/svg+xml")
+	w.Header().Set("Cache-Control", "public, max-age=10800")
 	w.Header().Add("Vary", "Accept-Encoding")
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(svg)

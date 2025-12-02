@@ -11,23 +11,29 @@ import (
 )
 
 func main() {
-	// 1. Initialize the Service
-	svc, err := service.NewDuoService()
+	// Initialize services
+	duoSvc, err := service.NewDuoService()
 	if err != nil {
-		log.Fatalf("Failed to initialize service: %v", err)
+		log.Fatalf("Failed to initialize Duolingo service: %v", err)
 	}
 
-	// 2. Initialize the API Handler
-	// We inject the service into the API
-	handler := api.NewAPI(svc)
+	githubSvc, err := service.NewGithubService()
+	if err != nil {
+		log.Fatalf("Failed to initialize GitHub service: %v", err)
+	}
 
-	// 3. Set up the Router
+	// Initialize API handler
+	// Inject services into API
+	handler := api.NewAPI(duoSvc, githubSvc)
+
+	// Set up router
 	mux := http.NewServeMux()
 
-	// Register the route
+	// Register routes
 	mux.HandleFunc("/api/duolingo/button", handler.GetDuoButton)
+	mux.HandleFunc("/api/github/button", handler.GetGithubButton)
 
-	// 4. Start the Server
+	// Start server
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
