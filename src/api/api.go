@@ -36,6 +36,10 @@ func writeError(w http.ResponseWriter, message string, code int) {
 	)
 
 	w.Header().Set("Content-Type", "image/svg+xml")
+	// Allow CDN/public caching of error badges for a short period
+	w.Header().Set("Cache-Control", "public, max-age=10800")
+	// Ensure caches (CDNs) store variants based on Accept-Encoding
+	w.Header().Add("Vary", "Accept-Encoding")
 	w.WriteHeader(code)
 	_, _ = w.Write([]byte(svg))
 }
@@ -86,6 +90,10 @@ func (a *API) GetDuoButton(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "image/svg+xml")
+	// Instruct CDNs and browsers to cache the generated SVG for 3 hours
+	w.Header().Set("Cache-Control", "public, max-age=10800")
+	// Ensure caches (CDNs) store variants based on Accept-Encoding
+	w.Header().Add("Vary", "Accept-Encoding")
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(svg)
 }
