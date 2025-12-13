@@ -4,11 +4,11 @@ import (
 	"bytes"
 	"context"
 	_ "embed"
+	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
-	"regexp"
-	"strconv"
+	"os"
+	"strings"
 	"sync"
 	"text/template"
 	"time"
@@ -17,11 +17,52 @@ import (
 //go:embed templates/githubText.svg
 var githubSVGTemplate string
 
+const githubGraphQLQuery = `query($login: String!) {
+	user(login: $login) {
+		contributionsCollection {
+			contributionCalendar {
+				weeks {
+					contributionDays {
+						date
+						contributionCount
+					}
+				}
+			}
+		}
+	}
+}`
+
+type githubGraphQLRequest struct {
+	Query     string            `json:"query"`
+	Variables map[string]string `json:"variables"`
+}
+
+type githubGraphQLResponse struct {
+	Data struct {
+		User struct {
+			ContributionsCollection struct {
+				ContributionCalendar struct {
+					Weeks []struct {
+						ContributionDays []struct {
+							Date              string `json:"date"`
+							ContributionCount int    `json:"contributionCount"`
+						} `json:"contributionDays"`
+					} `json:"weeks"`
+				} `json:"contributionCalendar"`
+			} `json:"contributionsCollection"`
+		} `json:"user"`
+	} `json:"data"`
+	Errors []struct {
+		Message string `json:"message"`
+	} `json:"errors"`
+}
+
 // GithubService implements the api.Service interface.
 type GithubService struct {
-	tmpl    *template.Template
-	client  *http.Client
-	baseURL string
+	tmpl       *template.Template
+	client     *http.Client
+	graphqlURL string
+	token      string
 
 	cache map[string]cacheEntry
 	mu    sync.RWMutex
@@ -34,14 +75,19 @@ func NewGithubService() (*GithubService, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse GitHub SVG template: %w", err)
 	}
+	token := strings.TrimSpace(os.Getenv("GITHUB_TOKEN"))
+	if token == "" {
+		return nil, fmt.Errorf("GITHUB_TOKEN is required to fetch GitHub streaks via the GitHub API")
+	}
 	return &GithubService{
 		tmpl: tmpl,
 		client: &http.Client{
 			Timeout: 10 * time.Second,
 		},
-		baseURL: "https://github.com/users/%s/contributions",
-		cache:   make(map[string]cacheEntry),
-		ttl:     4 * time.Hour,
+		graphqlURL: "https://api.github.com/graphql",
+		token:      token,
+		cache:      make(map[string]cacheEntry),
+		ttl:        4 * time.Hour,
 	}, nil
 }
 
@@ -78,16 +124,27 @@ func (s *GithubService) fetchStreak(ctx context.Context, username string) (int, 
 		return entry.streak, nil
 	}
 
-	// Fetch the contributions page
-	url := fmt.Sprintf(s.baseURL, username)
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	payload := githubGraphQLRequest{
+		Query: githubGraphQLQuery,
+		Variables: map[string]string{
+			"login": username,
+		},
+	}
+
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return 0, fmt.Errorf("failed to encode GraphQL request: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, s.graphqlURL, bytes.NewReader(body))
 	if err != nil {
 		return 0, err
 	}
 
-	// Set headers for HTML response
-	req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; StreakWidget/1.0)")
-	req.Header.Set("Accept", "text/html")
+	req.Header.Set("Authorization", "Bearer "+s.token)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("User-Agent", "StreakWidget/1.0")
 
 	resp, err := s.client.Do(req)
 	if err != nil {
@@ -97,17 +154,36 @@ func (s *GithubService) fetchStreak(ctx context.Context, username string) (int, 
 		_ = resp.Body.Close()
 	}()
 
+	if resp.StatusCode == http.StatusUnauthorized {
+		return 0, fmt.Errorf("github token unauthorized: check GITHUB_TOKEN")
+	}
+
 	if resp.StatusCode != http.StatusOK {
-		return 0, fmt.Errorf("github contributions page returned status: %d", resp.StatusCode)
+		return 0, fmt.Errorf("github graphql api returned status: %d", resp.StatusCode)
 	}
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return 0, fmt.Errorf("failed to read response body: %w", err)
+	var gqlResp githubGraphQLResponse
+	if err := json.NewDecoder(resp.Body).Decode(&gqlResp); err != nil {
+		return 0, fmt.Errorf("failed to decode github response: %w", err)
 	}
 
-	// Parse contributions and calculate streak
-	streak := s.calculateStreak(string(body))
+	if len(gqlResp.Errors) > 0 {
+		return 0, fmt.Errorf("github graphql error: %s", gqlResp.Errors[0].Message)
+	}
+
+	weeks := gqlResp.Data.User.ContributionsCollection.ContributionCalendar.Weeks
+	if len(weeks) == 0 {
+		return 0, fmt.Errorf("no contribution data returned for user: %s", username)
+	}
+
+	contributions := make(map[string]bool)
+	for _, week := range weeks {
+		for _, day := range week.ContributionDays {
+			contributions[day.Date] = day.ContributionCount > 0
+		}
+	}
+
+	streak := s.calculateStreak(contributions)
 
 	// Update cache
 	s.mu.Lock()
@@ -120,61 +196,27 @@ func (s *GithubService) fetchStreak(ctx context.Context, username string) (int, 
 	return streak, nil
 }
 
-// calculateStreak parses GitHub contributions HTML to calculate the current streak.
-// Looks for data-date and data-level attributes in the contribution graph.
-func (s *GithubService) calculateStreak(html string) int {
-	// GitHub contributions page contains elements like:
-	// <td ... data-date="2025-12-01" data-level="1" ...>
-	// data-level="0" means no contributions, 1-4 means contributions
-
-	// Regex to find contribution days with dates and levels
-	re := regexp.MustCompile(`data-date="(\d{4}-\d{2}-\d{2})"[^>]*data-level="(\d)"`)
-	matches := re.FindAllStringSubmatch(html, -1)
-
-	if len(matches) == 0 {
-		// Try alternative pattern if order differs
-		re = regexp.MustCompile(`data-level="(\d)"[^>]*data-date="(\d{4}-\d{2}-\d{2})"`)
-		matches = re.FindAllStringSubmatch(html, -1)
-		// Swap capture groups for consistency
-		for i, m := range matches {
-			if len(m) >= 3 {
-				matches[i] = []string{m[0], m[2], m[1]}
-			}
-		}
-	}
-
-	if len(matches) == 0 {
+// calculateStreak computes the current contribution streak from a date->bool map.
+func (s *GithubService) calculateStreak(contributions map[string]bool) int {
+	if len(contributions) == 0 {
 		return 0
 	}
 
-	// Build map of date to contribution status
-	contributions := make(map[string]bool)
-	for _, match := range matches {
-		if len(match) >= 3 {
-			date := match[1]
-			level, _ := strconv.Atoi(match[2])
-			contributions[date] = level > 0
-		}
-	}
-
-	// Calculate streak starting from today backwards
 	streak := 0
 	today := time.Now().UTC()
 
-	// Iterate backwards from today
 	for i := 0; i < 365; i++ {
 		date := today.AddDate(0, 0, -i).Format("2006-01-02")
 		hasContribution, exists := contributions[date]
 
 		if i == 0 && !exists {
-			// Skip today if not in data
+			// Skip today if not in returned data (possible time zone gap)
 			continue
 		}
 
 		if hasContribution {
 			streak++
 		} else if i > 0 {
-			// Break streak if no contribution and not today
 			break
 		}
 	}
