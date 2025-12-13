@@ -29,7 +29,7 @@ func TestGithubService_GetBadge_UsesGraphQLAndCaches(t *testing.T) {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprintf(w, `{"data":{"user":{"contributionsCollection":{"contributionCalendar":{"weeks":[{"contributionDays":[{"date":"%s","contributionCount":1},{"date":"%s","contributionCount":1},{"date":"%s","contributionCount":0}]}]}}}}}`,
+		_, _ = fmt.Fprintf(w, `{"data":{"user":{"contributionsCollection":{"contributionCalendar":{"weeks":[{"contributionDays":[{"date":"%s","contributionCount":1},{"date":"%s","contributionCount":1},{"date":"%s","contributionCount":0}]}]}}}}}`,
 			today.Format("2006-01-02"),
 			yesterday.Format("2006-01-02"),
 			twoDaysAgo.Format("2006-01-02"),
@@ -58,5 +58,32 @@ func TestGithubService_GetBadge_UsesGraphQLAndCaches(t *testing.T) {
 
 	if requestCount != 1 {
 		t.Fatalf("expected 1 API call due to cache, got %d", requestCount)
+	}
+}
+
+func TestGithubService_AllowsMissingToken(t *testing.T) {
+	// No token set; service should still initialize and omit Authorization header.
+	today := time.Now().UTC()
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.Header.Get("Authorization"); got != "" {
+			t.Fatalf("expected no Authorization header, got %s", got)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = fmt.Fprintf(w, `{"data":{"user":{"contributionsCollection":{"contributionCalendar":{"weeks":[{"contributionDays":[{"date":"%s","contributionCount":1}]}]}}}}}`,
+			today.Format("2006-01-02"),
+		)
+	}))
+	defer ts.Close()
+
+	svc, err := NewGithubService()
+	if err != nil {
+		t.Fatalf("NewGithubService failed without token: %v", err)
+	}
+	svc.graphqlURL = ts.URL
+
+	_, err = svc.GetBadge(context.Background(), "octocat", "default")
+	if err != nil {
+		t.Fatalf("GetBadge failed without token: %v", err)
 	}
 }

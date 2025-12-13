@@ -76,9 +76,6 @@ func NewGithubService() (*GithubService, error) {
 		return nil, fmt.Errorf("failed to parse GitHub SVG template: %w", err)
 	}
 	token := strings.TrimSpace(os.Getenv("GITHUB_TOKEN"))
-	if token == "" {
-		return nil, fmt.Errorf("GITHUB_TOKEN is required to fetch GitHub streaks via the GitHub API")
-	}
 	return &GithubService{
 		tmpl: tmpl,
 		client: &http.Client{
@@ -141,7 +138,9 @@ func (s *GithubService) fetchStreak(ctx context.Context, username string) (int, 
 		return 0, err
 	}
 
-	req.Header.Set("Authorization", "Bearer "+s.token)
+	if s.token != "" {
+		req.Header.Set("Authorization", "Bearer "+s.token)
+	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("User-Agent", "StreakWidget/1.0")
@@ -155,7 +154,7 @@ func (s *GithubService) fetchStreak(ctx context.Context, username string) (int, 
 	}()
 
 	if resp.StatusCode == http.StatusUnauthorized {
-		return 0, fmt.Errorf("github token unauthorized: check GITHUB_TOKEN")
+		return 0, fmt.Errorf("github graphql api returned 401 unauthorized; provide GITHUB_TOKEN to increase limits and access")
 	}
 
 	if resp.StatusCode != http.StatusOK {
