@@ -25,7 +25,7 @@ buildGoModule {
   meta = {
     description = "A duolingo 88x31 button";
     homepage = "https://github.com/pixel-87/duo-streak-widget";
-    license = lib.licenses.mit;
+    license = lib.licenses.gpl3Plus;
     maintainers = with lib.maintainers; [ ];
     mainProgram = "duo-streak-widget";
   };
