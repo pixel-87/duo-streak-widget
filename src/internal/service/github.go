@@ -38,23 +38,37 @@ type githubGraphQLRequest struct {
 }
 
 type githubGraphQLResponse struct {
-	Data struct {
-		User struct {
-			ContributionsCollection struct {
-				ContributionCalendar struct {
-					Weeks []struct {
-						ContributionDays []struct {
-							Date              string `json:"date"`
-							ContributionCount int    `json:"contributionCount"`
-						} `json:"contributionDays"`
-					} `json:"weeks"`
-				} `json:"contributionCalendar"`
-			} `json:"contributionsCollection"`
-		} `json:"user"`
-	} `json:"data"`
-	Errors []struct {
-		Message string `json:"message"`
-	} `json:"errors"`
+	Data   githubGraphQLData    `json:"data"`
+	Errors []githubGraphQLError `json:"errors"`
+}
+
+type githubGraphQLData struct {
+	User githubGraphQLUser `json:"user"`
+}
+
+type githubGraphQLUser struct {
+	Contributions githubContributions `json:"contributionsCollection"`
+}
+
+type githubContributions struct {
+	Calendar githubCalendar `json:"contributionCalendar"`
+}
+
+type githubCalendar struct {
+	Weeks []githubWeek `json:"weeks"`
+}
+
+type githubWeek struct {
+	Days []githubDay `json:"contributionDays"`
+}
+
+type githubDay struct {
+	Date              string `json:"date"`
+	ContributionCount int    `json:"contributionCount"`
+}
+
+type githubGraphQLError struct {
+	Message string `json:"message"`
 }
 
 // GithubService implements the api.Service interface.
@@ -170,14 +184,14 @@ func (s *GithubService) fetchStreak(ctx context.Context, username string) (int, 
 		return 0, fmt.Errorf("github graphql error: %s", gqlResp.Errors[0].Message)
 	}
 
-	weeks := gqlResp.Data.User.ContributionsCollection.ContributionCalendar.Weeks
+	weeks := gqlResp.Data.User.Contributions.Calendar.Weeks
 	if len(weeks) == 0 {
 		return 0, fmt.Errorf("no contribution data returned for user: %s", username)
 	}
 
 	contributions := make(map[string]bool)
 	for _, week := range weeks {
-		for _, day := range week.ContributionDays {
+		for _, day := range week.Days {
 			contributions[day.Date] = day.ContributionCount > 0
 		}
 	}

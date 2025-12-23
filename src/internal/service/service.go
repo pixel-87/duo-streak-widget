@@ -17,15 +17,21 @@ import (
 var duoSVGTemplate string
 
 type duoResponse struct {
-	Users []struct {
-		Streak     int `json:"streak"`
-		StreakData struct {
-			CurrentStreak struct {
-				Length int `json:"length"`
-			} `json:"currentStreak"`
-			PreviousStreak interface{} `json:"previousStreak"`
-		} `json:"streakData"`
-	} `json:"users"`
+	Users []duoUser `json:"users"`
+}
+
+type duoUser struct {
+	Streak     int           `json:"streak"`
+	StreakData duoStreakData `json:"streakData"`
+}
+
+type duoStreakData struct {
+	CurrentStreak  duoCurrentStreak `json:"currentStreak"`
+	PreviousStreak interface{}      `json:"previousStreak"`
+}
+
+type duoCurrentStreak struct {
+	Length int `json:"length"`
 }
 
 type cacheEntry struct {
