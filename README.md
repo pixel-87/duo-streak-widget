@@ -13,6 +13,28 @@ duo-streak-widget is a tiny Go service that renders 88×31 SVG badges for Duolin
 </a>
 ```
 
+### GitHub Contribution Streak
+
+Drop your GitHub streak into any markdown or HTML:
+
+```html
+<a href="https://github.com/<YOUR_USERNAME>"
+     target="_blank">
+  <img src="https://api.pixel-87.uk/api/github/button?username=<YOUR_USERNAME>"
+           alt="GitHub Streak"
+           title="GitHub Contribution Streak"
+  />
+</a>
+```
+
+Example: Replace `<YOUR_USERNAME>` with your GitHub handle (e.g., `octocat`):
+
+```html
+<img src="https://api.pixel-87.uk/api/github/button?username=octocat" />
+```
+
+Both badges are 88×31 pixel SVGs optimized for README embeds and personal sites.
+
 ## Endpoints
 - `GET /api/duolingo/button?username=<user>&variant=<optional>` – returns a Duolingo streak badge for the requested user.
 - `GET /api/github/button?username=<user>&variant=<optional>` – returns a GitHub contribution streak badge (supports unauthenticated requests but works best with `GITHUB_TOKEN`).
