@@ -8,7 +8,7 @@ buildGoModule {
 
   src = ../src;
 
-  vendorHash = "sha256-XWsBc8QKelO0FRwr2QgSNTNHyY9pD6fr1karRDc1CtY=";
+  vendorHash = "sha256-3LBAOYoHID4Jy7fYyfm7b/ZSWrqbwlW/cz9CDFXDliA=";
 
   subPackages = [ "cmd/api" ];
 
