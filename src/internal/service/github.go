@@ -43,28 +43,18 @@ type githubGraphQLResponse struct {
 }
 
 type githubGraphQLData struct {
-	User githubGraphQLUser `json:"user"`
-}
-
-type githubGraphQLUser struct {
-	Contributions githubContributions `json:"contributionsCollection"`
-}
-
-type githubContributions struct {
-	Calendar githubCalendar `json:"contributionCalendar"`
-}
-
-type githubCalendar struct {
-	Weeks []githubWeek `json:"weeks"`
-}
-
-type githubWeek struct {
-	Days []githubDay `json:"contributionDays"`
-}
-
-type githubDay struct {
-	Date              string `json:"date"`
-	ContributionCount int    `json:"contributionCount"`
+	User struct {
+		Contributions struct {
+			Calendar struct {
+				Weeks []struct {
+					Days []struct {
+						Date              string `json:"date"`
+						ContributionCount int    `json:"contributionCount"`
+					} `json:"contributionDays"`
+				} `json:"weeks"`
+			} `json:"contributionCalendar"`
+		} `json:"contributionsCollection"`
+	} `json:"user"`
 }
 
 type githubGraphQLError struct {
