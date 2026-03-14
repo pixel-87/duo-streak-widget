@@ -37,4 +37,7 @@ result/
 .terraform/
 terraform.tfstate*
 terraform.tfvars
-*.tfvars
+*.tfvarsdirenv/
+result
+
+.direnv/
