@@ -93,13 +93,14 @@ func (a *API) GetDuoButton(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "image/svg+xml")
+	w.Header().Set("Content-Type", "image/svg+xml; charset=utf-8")
 	// Cache SVG for 3 hours
 	w.Header().Set("Cache-Control", "public, max-age=10800")
 	// Vary on Accept-Encoding for cache variants
 	w.Header().Add("Vary", "Accept-Encoding")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write(svg)
+	_, _ = w.Write(svg) // #nosec G705 - svg is generated and sanitized by service
 }
 
 // GetGithubButton handles the /api/github/button route.
@@ -126,9 +127,10 @@ func (a *API) GetGithubButton(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "image/svg+xml")
+	w.Header().Set("Content-Type", "image/svg+xml; charset=utf-8")
 	w.Header().Set("Cache-Control", "public, max-age=10800")
 	w.Header().Add("Vary", "Accept-Encoding")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write(svg)
+	_, _ = w.Write(svg) // #nosec G705 - svg is generated and sanitized by service
 }

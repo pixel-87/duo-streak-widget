@@ -41,3 +41,4 @@ terraform.tfvars
 result
 
 .direnv/
+terraform.tfvars

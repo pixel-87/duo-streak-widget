@@ -39,7 +39,7 @@ func main() {
 		port = "8080"
 	}
 
-	log.Printf("Server starting on port %s...", port)
+	log.Printf("Server starting on port %q...", port) // #nosec G706 - port is from known environment variable
 	srv := &http.Server{
 		Addr:         ":" + port,
 		Handler:      mux,
